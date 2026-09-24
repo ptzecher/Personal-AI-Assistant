@@ -13,9 +13,23 @@ class LLM:
 
          self.model = "gemini-3.5-flash-lite"
 
-    async def generate(self,message):
+    async def generate(self,messages):
+        contents=[]
+        for message in messages:
+            role=message["role"]
+            if role=="assistant":
+                role="model"
 
-        response= await self.client.aio.models.generate_content(model=self.model,contents=message)
+            contents.append({
+                "role": role,
+                "parts": [
+                    {
+                        "text": message["content"]
+                    }
+                ]
+            })
+
+        response= await self.client.aio.models.generate_content(model=self.model,contents=contents)
         return response.text
     
 
