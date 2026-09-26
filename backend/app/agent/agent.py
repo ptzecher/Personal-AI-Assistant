@@ -1,16 +1,16 @@
 from database.repository import *
 from sqlalchemy.orm import Session
 
-from agent.tools import calculator
+from google.genai import types
+
+from tools import tool_registry
 
 
 class Agent:
 
     def __init__(self,llm):
         self.llm=llm
-        self.tools={
-            "calculator":calculator
-            }
+        self.tools=tool_registry
 
 
 
@@ -32,54 +32,108 @@ class Agent:
             }
             for msg in messages
         ]
-        llm_response=await self.llm.generate(history)
 
-        if llm_response["type"]=="text":
-            final_answer= llm_response["content"]
-            save_message(db,conversation_id,"assistant",final_answer)
+        contents = self.llm.build_contents(history)
 
-        elif  llm_response["type"] == "tool_call":
+
+
+        llm_response=await self.llm.generate(contents)
+
+        MAX_ITERATIONS=5
+
+        
+
+        for _ in range(MAX_ITERATIONS):
+
+             # -------------------------
+            # NORMAL TEXT RESPONSE
+            # -------------------------
+
+            if llm_response["type"] == "text":
+
+                final_answer = llm_response["content"]
+
+                if not final_answer:
+                    raise RuntimeError(
+                        "Gemini returned no final answer"
+                    )
+
+                save_message(
+                    db,
+                    conversation_id,
+                    "assistant",
+                    final_answer
+                )
+
+                return final_answer
+
+            if llm_response["type"] != "tool_call":
+                raise RuntimeError(
+                    "Unexpected LLM response"
+                )
+
             tool_name = llm_response["name"]
             tool_args = llm_response["args"]
 
-            if tool_name not in self.tools:
-                raise ValueError(f"Unknown tool: {tool_name}")
 
-            print(f"Executing {tool_name} with {tool_args}")
-
-            tool=self.tools[tool_name]
-
-            result=tool(**tool_args)
-
-            print(f"Tool result:{result}")
-
-            response = await self.llm.generate_with_tool_result(
-                contents=llm_response["contents"],
-                model_response=llm_response["model_response"],
-                tool_name=tool_name,
-                result=result
-            )
-
-            if response.function_calls:
-                raise RuntimeError(
-                    "Additional tool calls are not supported yet"
+            # Make sure the requested tool exists
+            if self.tools.get(tool_name) is None:
+                raise ValueError(
+                    f"Unknown tool: {tool_name}"
                 )
 
-            final_answer = response.text
-            save_message(db,conversation_id,"assistant",final_answer)
-            
+            print(
+                f"Executing {tool_name} "
+                f"with {tool_args}"
+            )
 
-        else:
-            raise RuntimeError("Unexpected LLM response")
 
-        if not final_answer:
-             raise RuntimeError("Gemini returned no final answer")
-    
-        return final_answer
-        
+            # Execute the actual Python tool
+            result = self.tools.execute(
+                tool_name,
+                tool_args
+            )
 
-        
 
-        
+            print(
+                f"Tool result: {result}"
+            )
 
-     
+            # -------------------------
+            # ADD TOOL CALL TO HISTORY
+            # -------------------------
+
+            contents.append(
+                llm_response["model_response"]
+            )
+
+
+            # -------------------------
+            # ADD TOOL RESULT TO HISTORY
+            # -------------------------
+
+            contents.append(
+                types.Content(
+                    role="user",
+                    parts=[
+                        types.Part.from_function_response(
+                            name=tool_name,
+                            response={
+                                "result": result
+                            }
+                        )
+                    ]
+                )
+            )
+
+            # -------------------------
+            # ASK GEMINI AGAIN
+            # -------------------------
+
+            llm_response = await self.llm.generate(
+                contents
+            )
+
+        raise RuntimeError(
+            "Maximum number of tool calls exceeded"
+        )
