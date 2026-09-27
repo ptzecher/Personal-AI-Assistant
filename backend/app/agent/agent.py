@@ -48,8 +48,10 @@ class Agent:
              # -------------------------
             # NORMAL TEXT RESPONSE
             # -------------------------
+            print(llm_response)
 
             if llm_response["type"] == "text":
+                
 
                 final_answer = llm_response["content"]
 
