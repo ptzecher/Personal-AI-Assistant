@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 from sqlalchemy import select
-from database.models import User,Conversation,Message
+from database.models import User,Conversation,Message,Note
 
 def create_user(db:Session,email:str,):
 
@@ -51,4 +51,19 @@ def get_conversation(db:Session,conversation_id:int):
             Conversation.id==conversation_id
         )
         .first()
+    )
+def create_note(db:Session,user_id:int,title:str,content:str):
+
+    note=Note(user_id=user_id,title=title,content=content)
+    db.add(note)
+    db.commit()
+    db.refresh(note)
+    return note
+
+def get_notes(db:Session,user_id:int):
+    return(
+        db.query(Note).filter(
+            Note.user_id==user_id
+        ).order_by(Note.created_at)
+        .all()
     )

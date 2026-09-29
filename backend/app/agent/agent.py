@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from google.genai import types
 
 from tools import tool_registry
+from tools.context import current_user_id,current_db
 
 
 class Agent:
@@ -20,6 +21,8 @@ class Agent:
 
         if conversation is None:
             raise ValueError("Conversation Not found")
+        current_db.set(db)
+        current_user_id.set(conversation.user_id)
 
         save_message(db,conversation_id,"user",message)
 
@@ -93,7 +96,7 @@ class Agent:
             # Execute the actual Python tool
             result = self.tools.execute(
                 tool_name,
-                tool_args
+                tool_args,
             )
 
 

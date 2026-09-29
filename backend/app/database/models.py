@@ -21,7 +21,12 @@ class User(Base):
     )
     conversations: Mapped[list["Conversation"]] = relationship(
     back_populates="user"
-)
+    )
+
+    notes: Mapped[list["Note"]] = relationship(
+    back_populates="user"
+    )
+
 
 class Conversation(Base):
 
@@ -81,4 +86,35 @@ class Message(Base):
 
     conversation: Mapped["Conversation"] = relationship(
     back_populates="messages"
+)
+
+class Note(Base):
+
+    __tablename__ = "notes"
+
+    id: Mapped[int] = mapped_column(
+        primary_key=True
+    )
+
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id"),
+        nullable=False
+    )
+
+    title: Mapped[str] = mapped_column(
+        String(255),
+        nullable=False
+    )
+
+    content: Mapped[str] = mapped_column(
+        Text,
+        nullable=False
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        default=datetime.utcnow
+    )
+    user :Mapped["User"] = relationship(
+    back_populates="notes"
 )
