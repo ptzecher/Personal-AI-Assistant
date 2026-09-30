@@ -67,3 +67,31 @@ def get_notes(db:Session,user_id:int):
         ).order_by(Note.created_at)
         .all()
     )
+
+def get_conversations(db:Session,user_id:int):
+    return(
+        db.query(Conversation).filter(
+            Conversation.user_id==user_id
+        ).order_by(Conversation.created_at)
+        .all()
+    )
+
+def update_conversation(db:Session,conversation_id,title:str):
+    conversation=get_conversation(db,conversation_id)
+
+    if conversation is None:
+        return None
+    conversation.title=title
+    db.commit()
+    db.refresh(conversation)
+    return conversation
+
+def delete_conversation(db:Session,conversation_id):
+
+    conversation=get_conversation(db,conversation_id)
+
+    if conversation is None:
+        return False
+    db.delete(conversation)
+    db.commit()
+    return True
