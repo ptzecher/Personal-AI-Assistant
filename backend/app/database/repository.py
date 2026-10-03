@@ -2,16 +2,9 @@ from sqlalchemy.orm import Session
 from sqlalchemy import select
 from database.models import User,Conversation,Message,Note
 
-def create_user(db:Session,email:str,):
+def create_user(db:Session,email:str,hashed_password:str):
 
-    user = db.scalar(
-        select(User).where(User.email == email)
-    )
-
-    if user is not None:
-        return user
-
-    user=User(email=email)
+    user=User(email=email,hashed_password=hashed_password)
 
     db.add(user)
     db.commit()
@@ -95,3 +88,13 @@ def delete_conversation(db:Session,conversation_id):
     db.delete(conversation)
     db.commit()
     return True
+
+
+def get_user_by_email(db:Session,email:str):
+
+    return(db.query(User).
+           filter(User.email==email).
+           first())
+
+def get_user_by_id(db:Session,user_id:int):
+    return (db.query(User).filter(User.id==user_id).first())

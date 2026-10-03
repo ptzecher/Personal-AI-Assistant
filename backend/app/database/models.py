@@ -19,6 +19,10 @@ class User(Base):
         default=datetime.utcnow
 
     )
+    hashed_password: Mapped[str] = mapped_column(
+    String(255),
+    nullable=False
+)
     conversations: Mapped[list["Conversation"]] = relationship(
     back_populates="user"
     )
